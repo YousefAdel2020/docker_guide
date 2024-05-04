@@ -1,0 +1,98 @@
+# The version of the Docker Compose document
+# and is mandatory
+version: '2.0'
+
+
+# to create network of name "corp"
+networks:
+  corp:
+  # choose the driver of network (optional) 
+    driver: bridge
+
+
+
+services:
+  api:
+    build: 
+      # context where the DockerFile locate for this service
+      context: ./Code/BackEnd
+      args:
+        ASPNETCORE_ENVIRONMENT: Docker
+        BuildConfiguration: Debug #Release
+        
+    container_name: api
+
+    networks:
+      - corp
+    # specify the ports  
+    ports:
+    # 1st way
+      - 5001:5001
+    # or 2nd way
+      - target:5001
+        published:5001
+
+    restart: always
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Docker
+      - BuildConfiguration=Debug
+
+    privileged: true
+    volumes:
+     #check below i dont think there is images in the www
+     # - images:/app/wwwroot/images
+      - uploads:/app/wwwroot/uploads
+     # or 2nd way
+      - type: volume
+        source: uploads
+        target: /app/wwwroot/uploads
+
+    depends_on:
+      - mysql-db  # Ensure the API service depends on the MySQL service.
+
+  ui:
+    build: 
+      context: ./Code/Frontend
+      args:
+        env: docker
+        base_href: /ui
+    container_name: ui
+    ports:
+      - 4200:80
+    networks:
+      - corp
+    depends_on:
+      - api
+    restart: always
+
+  webserver:
+    build: 
+      context: ./nginx
+    container_name: webserver
+    ports:
+      - 80:80
+    networks:
+      - corp
+    restart: unless-stopped
+    tty: true
+
+  mysql-db:  # Add the MySQL service
+    image: mysql:8  # Use the latest MySQL Docker image
+    container_name: mysql-db
+    networks:
+      - corp
+    ports:
+      - 3306:3306  # Map MySQL port to the host
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: Orien@123  # Set your desired root password
+      MYSQL_DATABASE: e_invoice  # Set your desired database name
+      MYSQL_USER: e_invoice  # Set your desired MySQL user
+      MYSQL_PASSWORD: Orien@123  # Set your desired MySQL user password
+    volumes:
+      - mysql-data:/var/lib/mysql  # Use a volume to persist MySQL data
+
+volumes:
+  #images:
+  uploads:
+  mysql-data:
